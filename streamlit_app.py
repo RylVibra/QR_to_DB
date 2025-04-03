@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
 from streamlit_qrcode_scanner import qrcode_scanner
+from streamlit_gsheets import GSheetsConnection
 st.title("🎈 My QR app")
 
 
-qrcode = qrcode_scanner()
+# qrcode = qrcode_scanner()
+qrcode = "test"
 st.markdown(f"# {qrcode}")
 
 if 'df' not in st.session_state:
@@ -44,4 +46,21 @@ with right:
         delete_all()
 
 
-st.dataframe(st.session_state.df, use_container_width=True)
+# st.dataframe(st.session_state.df, use_container_width=True)
+
+
+
+
+# Create a connection object.
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+df = conn.read(
+    worksheet="Sheet2",
+    ttl="10m",
+    usecols=[0, 1],
+    nrows=3,
+)
+
+# Print results.
+for row in df.itertuples():
+    st.write(f"{row.name} has a :{row.pet}:")
