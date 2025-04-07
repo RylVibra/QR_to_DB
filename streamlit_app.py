@@ -44,51 +44,53 @@ df = read_db()
 if 'qrcode' not in st.session_state:
     st.session_state.qrcode = ""
 
-# Get stored QR code from session state
-stored_qr_code = st.session_state.get("qrcode", "")
-
 # Create a selectbox for the user to select a unit
 selected_row = st.selectbox(
     label="Select a Unit", 
     options=df['unit'].unique().tolist(),
-    on_change=lambda: st.session_state.update({"qrcode": ""}), 
     help="Select a unit to scan its battery code."
     )
+
+if 'selected_row' not in st.session_state:
+    st.session_state.selected_row =  selected_row
 
 # Display the selected row
 table_data = df.loc[df['unit'] == selected_row]
 unit = table_data['unit'].values[0]
 battery = table_data['battery'].values[0]
-if battery!="nan" or battery!="" or battery!="None":
+if battery!= "nan":
     battery = '-'.join(battery.split("-")[5:])
     st.write(f"SL: {battery}")
 else:
     st.write("No battery code attached.")
 timestamp = table_data['timestamp'].values[0]
-
 st.write(f"Last update: {timestamp}")
 
 # QR code scanner
 qrcode = qrcode_scanner()
 
+# Get stored QR code from session state
+stored_qr_code = st.session_state.get("qrcode", "")
+
 # Check if a new QR code was scanned
 if qrcode and qrcode!=stored_qr_code:
     # Set the new QR code in session state
     st.session_state.qrcode = qrcode
+    stored_qr_code = st.session_state.get("qrcode", "")
     st.toast(body="New Code Scanned!", icon="✅")
 
 
-
-
-if qrcode:
-    qr_data = qrcode.split("-")
+if stored_qr_code:
+    qr_data = stored_qr_code.split("-")
     if len(qr_data) > 6:
         company, amphr, m, d, yr, *serial = qr_data
         serial = '-'.join(serial)
-        qr_data = {'Company': company, 
-                   'Capacity': amphr, 
-                   'Date': f"{m}-{d}-{yr}"}
-        color = "green" if qrcode == stored_qr_code else "orange"
+        qr_data = {
+            'Company': company, 
+            'Capacity': amphr, 
+            'Date': f"{m}-{d}-{yr}"
+            }
+        color = "green" if stored_qr_code == stored_qr_code else "orange"
         st.markdown(f"##### SL: :{color}[{serial}]")
         st.table(data=qr_data)
     else:
@@ -96,11 +98,11 @@ if qrcode:
 
 
 st.button(
-    label="Add QR code", 
+    label="Add Battery code", 
     icon="📌", 
     help="Attach code to unit", 
     on_click=add_qr_code, 
-    args=(qrcode,), 
+    args=(stored_qr_code,), 
     use_container_width=True
     )
 
