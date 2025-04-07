@@ -1,46 +1,103 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
+from streamlit_qrcode_scanner import qrcode_scanner
+from datetime import datetime
 
+# st.title("🔋 Battery Scanner")
 
-st.title("🔋 Battery Scanner")
-
+# Constants
+gsheet = "gsheets"
+wksheet = "Sheet2"
+timestamp_pattern = "%Y-%m-%d, %I:%M:%S %p"
 # Create a connection object.
-conn = st.connection("gsheets", type=GSheetsConnection)
-df = conn.read(ttl=0,usecols=[0, 1]).astype(str)
+conn = st.connection(gsheet, type=GSheetsConnection)
 
-# Create a selectbox for the user to select a unit
-all_units = df["unit"].unique().tolist()
-selected_row = st.selectbox("Select a Unit", all_units)
+def read_db():
+    # Read the data from the Google Sheet
+    df = conn.read(worksheet=wksheet,ttl=60, usecols=[0,1,2]).astype(str)
+    return df
+
+# Function to add QR code to the selected unit
+def add_qr_code(code):
+    local_df = read_db()
+    print(code)
+    if not code:
+        st.error("Please scan a QR code.")
+        return
+    if code in local_df['battery'].values:
+        existing_unit = local_df.loc[local_df['battery'] == code, 'unit'].values[0]
+        if existing_unit==selected_row:
+            st.error(f"Battery code already exists in unit {existing_unit}.")
+            return
+        st.error(f"Battery code already exists. Force removed from unit {existing_unit}.")
+        local_df.loc[local_df['battery'] == code, 'battery'] = f"forced-removal-{code}"
+    local_df.loc[local_df['unit'] == selected_row, 'battery'] = code
+    local_df.loc[local_df['unit'] == selected_row, 'timestamp'] = datetime.today().strftime(timestamp_pattern)
+    global df 
+    df = conn.update(data=local_df)
 
 
+df = read_db()
+# st.dataframe(df, use_container_width=True)
+
+# Initialize session state for QR code storage
 if 'qrcode' not in st.session_state:
     st.session_state.qrcode = ""
 
-qrcode = st.session_state.qrcode
+# Get stored QR code from session state
+stored_qr_code = st.session_state.get("qrcode", "")
 
-def add_qr_code(code):
-    df = conn.read(ttl=0,usecols=[0, 1]).astype(str)
-    df.loc[df["unit"] == selected_row, "battery"] = code
-    conn.update(data=df)
-    st.success("QR code added successfully.")
-    
-
-# Display the selected row
-st.dataframe(
-    df.loc[df["unit"] == selected_row],
-    use_container_width=True,
-    hide_index=True
+# Create a selectbox for the user to select a unit
+selected_row = st.selectbox(
+    label="Select a Unit", 
+    options=df['unit'].unique().tolist(),
+    on_change=lambda: st.session_state.update({"qrcode": ""}), 
+    help="Select a unit to scan its battery code."
     )
 
-st.page_link("1_scanner.py", label="Scan QR code", icon="📸", help="Scan QR code")
+# Display the selected row
+table_data = df.loc[df['unit'] == selected_row]
+unit = table_data['unit'].values[0]
+battery = table_data['battery'].values[0]
+if battery!="nan" or battery!="" or battery!="None":
+    battery = '-'.join(battery.split("-")[5:])
+    st.write(f"SL: {battery}")
+else:
+    st.write("No battery code attached.")
+timestamp = table_data['timestamp'].values[0]
 
-# pg = st.navigation([st.Page("page1.py", title="First page")])
+st.write(f"Last update: {timestamp}")
+
+# QR code scanner
+qrcode = qrcode_scanner()
+
+# Check if a new QR code was scanned
+if qrcode and qrcode!=stored_qr_code:
+    # Set the new QR code in session state
+    st.session_state.qrcode = qrcode
+    st.toast(body="New Code Scanned!", icon="✅")
+    
+
+if qrcode:
+    qr_data = qrcode.split("-")
+    if len(qr_data) > 6:
+        company, amphr, m, d, yr, *serial = qr_data
+        color = "green" if qrcode == stored_qr_code else "orange"
+        st.markdown(f"##### SL: :{color}[{'-'.join(serial)}]")
+        st.write(f"Company: {company}")
+        st.write(f"Capacity: {amphr}")
+        st.write(f"Purchase date: {m}-{d}-{yr}")
+    else:
+        st.markdown(f"#### SL: :red[{qrcode}]")
+        st.error("Invalid QR code format.")
 
 
+st.button(
+    label="Add QR code", 
+    icon="📌", 
+    help="Attach code to unit", 
+    on_click=add_qr_code, 
+    args=(qrcode,), 
+    use_container_width=True
+    )
 
-
-
-
-
-st.markdown(f"{qrcode}")
-st.button("Add QR code", on_click=add_qr_code, args=(qrcode,))
