@@ -76,19 +76,22 @@ if qrcode and qrcode!=stored_qr_code:
     # Set the new QR code in session state
     st.session_state.qrcode = qrcode
     st.toast(body="New Code Scanned!", icon="✅")
-    
+
+
+
 
 if qrcode:
     qr_data = qrcode.split("-")
     if len(qr_data) > 6:
         company, amphr, m, d, yr, *serial = qr_data
+        serial = '-'.join(serial)
+        qr_data = {'Company': company, 
+                   'Capacity': amphr, 
+                   'Date': f"{m}-{d}-{yr}"}
         color = "green" if qrcode == stored_qr_code else "orange"
-        st.markdown(f"##### SL: :{color}[{'-'.join(serial)}]")
-        st.write(f"Company: {company}")
-        st.write(f"Capacity: {amphr}")
-        st.write(f"Purchase date: {m}-{d}-{yr}")
+        st.markdown(f"##### SL: :{color}[{serial}]")
+        st.table(data=qr_data)
     else:
-        st.markdown(f"#### SL: :red[{qrcode}]")
         st.error("Invalid QR code format.")
 
 
