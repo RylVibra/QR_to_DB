@@ -9,13 +9,17 @@ from datetime import date
 gsheet = "gsheets"
 wksheet = "Sheet2"
 timestamp_pattern = "%Y-%m-%d"
+color = "red"
 # Create a connection object.
 conn = st.connection(gsheet, type=GSheetsConnection)
 
 def read_db():
     # Read the data from the Google Sheet
-    df = conn.read(worksheet=wksheet,ttl=60, usecols=[0,1,2]).astype(str)
-    return df
+    return conn.read(worksheet=wksheet,ttl=0, usecols=[0,1,2]).astype(str)
+
+
+def get_row_data(df, selected_row):
+    return df.loc[df['unit'] == selected_row]
 
 # Function to add QR code to the selected unit
 def add_qr_code(code):
@@ -33,16 +37,18 @@ def add_qr_code(code):
         local_df.loc[local_df['battery'] == code, 'battery'] = f"forced-removal-{code}"
     local_df.loc[local_df['unit'] == selected_row, 'battery'] = code
     local_df.loc[local_df['unit'] == selected_row, 'timestamp'] = date.today().strftime(timestamp_pattern)
-    global df 
-    df = conn.update(data=local_df)
+    conn.update(data=local_df)
+    
+    
+    
+# Initialize session state for QR code storage
+if 'qrcode' not in st.session_state:
+    st.session_state.qrcode = ""
 
 
 df = read_db()
 # st.dataframe(df, use_container_width=True)
 
-# Initialize session state for QR code storage
-if 'qrcode' not in st.session_state:
-    st.session_state.qrcode = ""
 
 # Create a selectbox for the user to select a unit
 selected_row = st.selectbox(
@@ -55,16 +61,17 @@ if 'selected_row' not in st.session_state:
     st.session_state.selected_row =  selected_row
 
 # Display the selected row
-table_data = df.loc[df['unit'] == selected_row]
+table_data = get_row_data(df, selected_row)
 unit = table_data['unit'].values[0]
 battery = table_data['battery'].values[0]
 if battery!= "nan":
-    battery = '-'.join(battery.split("-")[5:])
-    st.write(f"SL: {battery}")
+    battery_SL = '-'.join(battery.split("-")[5:])
+    st.write(f"SL: {battery_SL}")
 else:
     st.write("No battery code attached.")
 timestamp = table_data['timestamp'].values[0]
 st.write(f"Last update: {timestamp}")
+
 
 # QR code scanner
 qrcode = qrcode_scanner()
@@ -90,7 +97,8 @@ if stored_qr_code:
             'Capacity': amphr, 
             'Date': f"{m}-{d}-{yr}"
             }
-        color = "green" if df.loc[df['battery'] == stored_qr_code, 'unit'].values[0] == selected_row else "orange"
+        color = "green" if stored_qr_code==battery else "orange"
+        # st.write(f"{stored_qr_code=} : {battery=}")
         st.markdown(f"##### SL: :{color}[{serial}]")
         st.table(data=qr_data)
     else:
