@@ -1,14 +1,14 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 from streamlit_qrcode_scanner import qrcode_scanner
-from datetime import datetime
+from datetime import date
 
 # st.title("🔋 Battery Scanner")
 
 # Constants
 gsheet = "gsheets"
 wksheet = "Sheet2"
-timestamp_pattern = "%Y-%m-%d, %I:%M:%S %p"
+timestamp_pattern = "%Y-%m-%d"
 # Create a connection object.
 conn = st.connection(gsheet, type=GSheetsConnection)
 
@@ -32,7 +32,7 @@ def add_qr_code(code):
         st.error(f"Battery code already exists. Force removed from unit {existing_unit}.")
         local_df.loc[local_df['battery'] == code, 'battery'] = f"forced-removal-{code}"
     local_df.loc[local_df['unit'] == selected_row, 'battery'] = code
-    local_df.loc[local_df['unit'] == selected_row, 'timestamp'] = datetime.today().strftime(timestamp_pattern)
+    local_df.loc[local_df['unit'] == selected_row, 'timestamp'] = date.today().strftime(timestamp_pattern)
     global df 
     df = conn.update(data=local_df)
 
@@ -90,7 +90,7 @@ if stored_qr_code:
             'Capacity': amphr, 
             'Date': f"{m}-{d}-{yr}"
             }
-        color = "green" if stored_qr_code == stored_qr_code else "orange"
+        color = "green" if df.loc[df['battery'] == stored_qr_code, 'unit'].values[0] == selected_row else "orange"
         st.markdown(f"##### SL: :{color}[{serial}]")
         st.table(data=qr_data)
     else:
@@ -101,8 +101,7 @@ st.button(
     label="Add Battery code", 
     icon="📌", 
     help="Attach code to unit", 
-    on_click=add_qr_code, 
+    on_click=add_qr_code,
     args=(stored_qr_code,), 
     use_container_width=True
     )
-
