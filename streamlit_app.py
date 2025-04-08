@@ -31,14 +31,13 @@ def add_qr_code(code):
     if code in local_df['battery'].values:
         existing_unit = local_df.loc[local_df['battery'] == code, 'unit'].values[0]
         if existing_unit==selected_row:
-            st.error(f"Battery code already exists in unit {existing_unit}.")
+            st.error(f"Battery code already attached to unit {existing_unit}.")
             return
-        st.error(f"Battery code already exists. Force removed from unit {existing_unit}.")
+        st.error(f"Battery code already attached. Force removed from unit {existing_unit}.")
         local_df.loc[local_df['battery'] == code, 'battery'] = f"forced-removal-{code}"
     local_df.loc[local_df['unit'] == selected_row, 'battery'] = code
     local_df.loc[local_df['unit'] == selected_row, 'timestamp'] = date.today().strftime(timestamp_pattern)
     conn.update(data=local_df)
-    
     
     
 # Initialize session state for QR code storage
