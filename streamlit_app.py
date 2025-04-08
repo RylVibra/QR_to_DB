@@ -86,6 +86,16 @@ if qrcode and qrcode!=stored_qr_code:
     stored_qr_code = st.session_state.get("qrcode", "")
     st.toast(body="New Code Scanned!", icon="✅")
 
+# BUTTON
+st.button(
+    label="Add Battery code", 
+    icon="📌", 
+    help="Attach code to unit", 
+    on_click=add_qr_code,
+    args=(stored_qr_code,), 
+    use_container_width=True
+    )
+
 
 if stored_qr_code:
     qr_data = stored_qr_code.split("-")
@@ -103,13 +113,3 @@ if stored_qr_code:
         st.table(data=qr_data)
     else:
         st.error("Invalid QR code format.")
-
-
-st.button(
-    label="Add Battery code", 
-    icon="📌", 
-    help="Attach code to unit", 
-    on_click=add_qr_code,
-    args=(stored_qr_code,), 
-    use_container_width=True
-    )
